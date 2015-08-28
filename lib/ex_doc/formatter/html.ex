@@ -28,7 +28,7 @@ defmodule ExDoc.Formatter.HTML do
 
     config =
       if config.logo do
-        process_logo_metadata(config)
+        process_logo_metadata(config, "#{config.output}/assets")
       else
         config
       end
@@ -233,8 +233,7 @@ defmodule ExDoc.Formatter.HTML do
     title |> String.replace(" ", "-") |> String.downcase()
   end
 
-  defp process_logo_metadata(config) do
-    output = "#{config.output}/assets"
+  def process_logo_metadata(config, output) do
     File.mkdir_p! output
     file_extname =
       config.logo
@@ -255,15 +254,15 @@ defmodule ExDoc.Formatter.HTML do
     File.write!("#{output}/#{file_name}", content)
   end
 
-  defp filter_list(:modules, nodes) do
+  def filter_list(:modules, nodes) do
     Enum.filter nodes, &(not &1.type in [:exception, :protocol, :impl])
   end
 
-  defp filter_list(:exceptions, nodes) do
+  def filter_list(:exceptions, nodes) do
     Enum.filter nodes, &(&1.type in [:exception])
   end
 
-  defp filter_list(:protocols, nodes) do
+  def filter_list(:protocols, nodes) do
     Enum.filter nodes, &(&1.type in [:protocol])
   end
 
