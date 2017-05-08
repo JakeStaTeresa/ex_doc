@@ -4,7 +4,7 @@ defmodule ExDoc.CLITest do
   import ExUnit.CaptureIO
 
   defp run(args) do
-    ExDoc.CLI.run(args, &{&1, &2, &3})
+    ExDoc.CLI.main(args, &{&1, &2, &3})
   end
 
   test "minimum command-line options" do
@@ -14,7 +14,8 @@ defmodule ExDoc.CLITest do
   test "loading config" do
     File.write!("test.config", ~s([key: "val"]))
 
-    {project, version, opts} = run(["ExDoc", "--extra-section", "Guides", "--extra", "README.md", "1.2.3", "...", "-c", "test.config"])
+    {project, version, opts} =
+      run(["ExDoc", "--extra-section", "Guides", "--extra", "README.md", "1.2.3", "...", "-c", "test.config"])
 
     assert project == "ExDoc"
     assert version == "1.2.3"
@@ -40,11 +41,11 @@ defmodule ExDoc.CLITest do
   end
 
   test "version" do
-    assert capture_io( fn ->
+    assert capture_io(fn ->
       run(["--version"])
     end) == "ExDoc v#{ExDoc.version}\n"
 
-    assert capture_io( fn ->
+    assert capture_io(fn ->
       run(["-v"])
     end) == "ExDoc v#{ExDoc.version}\n"
   end
@@ -63,5 +64,50 @@ defmodule ExDoc.CLITest do
     end
 
     assert catch_exit(capture_io(fun)) == {:shutdown, 1}
+  end
+
+  test "arguments that are not aliased" do
+    File.write!("not_aliased.config", ~s([extra: "README2.md"]))
+
+    args = [
+        "ExDoc", "1.2.3", "ebin",
+        "--config", "not_aliased.config",
+        "--output", "html",
+        "--formatter", "html",
+        "--filter-prefix", "prefix_",
+        "--source-root", "./",
+        "--source-url", "http://example.com/username/project",
+        "--source-ref", "abcdefg",
+        "--main", "Main",
+        "--homepage-url", "http://example.com",
+        "--extra", "README.md", "--extra", "Foo", "--extra", "Bar",
+        "--extra-section", "Extra",
+        "--assets", "foo.css",
+        "--logo", "logo.png",
+        "--canonical", "http://example.com/project"
+      ]
+
+    {project, version, opts} = run(args)
+    assert project == "ExDoc"
+    assert version == "1.2.3"
+    assert Enum.sort(opts) == [
+      assets: "foo.css",
+      canonical: "http://example.com/project",
+      extra_section: "Extra",
+      extras: ["README.md", "Foo", "Bar"],
+      filter_prefix: "prefix_",
+      formatter: "html",
+      formatter_opts: [extra: "README2.md"],
+      homepage_url: "http://example.com",
+      logo: "logo.png",
+      main: "Main",
+      output: "html",
+      source_beam: "ebin",
+      source_ref: "abcdefg",
+      source_root: "./",
+      source_url: "http://example.com/username/project",
+    ]
+  after
+    File.rm!("not_aliased.config")
   end
 end

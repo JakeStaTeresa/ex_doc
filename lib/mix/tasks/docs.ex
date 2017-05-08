@@ -2,19 +2,22 @@ defmodule Mix.Tasks.Docs do
   use Mix.Task
 
   @shortdoc "Generate documentation for the project"
-  @recursive true
 
   @moduledoc """
   Uses ExDoc to generate a static web page from the project documentation.
 
   ## Command line options
 
-    * `--output`, `-o` - output directory for the generated
-      docs, default: `"doc"`
-    * `--canonical`, `-a` - indicate the preferred URL with
-      rel="canonical" link element, default: nil
+    * `--canonical`, `-n` - Indicate the preferred URL with
+      rel="canonical" link element, defaults to no canonical path
 
-  The command line options have lower precedence than the options
+    * `--formatter`, `-f` - Which formatters to use, "html" or
+      "epub", default: "html" (may be given more than once)
+
+    * `--output`, `-o` - Output directory for the generated
+      docs, default: `"doc"`
+
+  The command line options have higher precedence than the options
   specified in your `mix.exs` file below.
 
   ## Configuration
@@ -27,12 +30,15 @@ defmodule Mix.Tasks.Docs do
       def project do
         [app: :my_app,
          version: "0.1.0-dev",
-         name: "My App",
-         source_url: "https://github.com/USER/APP",
-         homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
          deps: deps(),
-         docs: [logo: "path/to/logo.png",
-                extras: ["README.md", "CONTRIBUTING.md"]]]
+
+         # Docs
+         name: "My App",
+         source_url: "https://github.com/USER/PROJECT",
+         homepage_url: "http://YOUR_PROJECT_HOMEPAGE",
+         docs: [main: "MyApp", # The main page in the docs
+                logo: "path/to/logo.png",
+                extras: ["README.md"]]]
       end
 
   ExDoc also allows configuration specific to the documentation to
@@ -41,40 +47,63 @@ defmodule Mix.Tasks.Docs do
   be a keyword list or a function returning a keyword list that will
   be lazily executed.
 
-    * `:output` - output directory for the generated docs; default: "doc".
-      May be overriden by command line argument.
+    * `:assets` - Path to a directory that will be copied as is to the "assets"
+      directory in the output path. Its entries may be referenced in your docs
+      under "assets/ASSET.EXTENSION"; defaults to no assets directory.
 
-    * `:formatter` - doc formatter to use; default: "html".
+    * `:canonical` - String that defines the preferred URL with the rel="canonical"
+      element; defaults to no canonical path.
 
-    * `:source_root` - path to the source code root directory;
-      default: "." (current directory).
+    * `:deps` - A keyword list application names and their documentation URL.
+      ExDoc will by default include all dependencies and assume they are hosted on
+      HexDocs. This can be overridden by your own values. Example: `[plug: "https://myserver/plug/"]`
 
-    * `:source_beam` - path to the beam directory; default: mix's compile path.
-
-    * `:source_ref` - the branch/commit/tag used for source link inference;
-      default: "master".
-
-    * `:source_url_pattern` - public URL of the project. Derived from
-      project's `:source_url` and `:source_ref`. Example:
-      "https://github.com/USER/APP/blob/master/%{path}#L%{line}"
-
-    * `:main` - main page of the documentation. It may be a module or a
-      generated page, like "Plug" or "api-reference";
-      default: "api-reference" when --formatter is "html".
-
-    * `:logo` - Path to the image logo of the project (only PNG or JPEG accepted)
-      The image size will be 64x64 when --formatter is "html".
+    * `:extra_section` - String that defines the section title of the additional
+      Markdown pages; default: "PAGES". Example: "GUIDES"
 
     * `:extras` - List of keywords, each key must indicate the path to additional
       Markdown pages, the value for each keyword (optional) gives you more control
       about the PATH and the title of the output files; default: `[]`. Example:
-      `["README.md", "CONTRIBUTING.md": [path: "CONTRIBUTORS", title: "Join us!"]]`
+      `["README.md", "CONTRIBUTING.md": [filename: "contributing", title: "Contributing", group: "Join us!"]]`
 
-    * `:extra_section` - String that define the section title of the additional
-      Markdown pages; default: "PAGES". Example: "GUIDES"
+    * `:filter_prefix` - Include only modules that match the given prefix in
+      the generated documentation. Example: "MyApp.Core"
 
-    * `:canonical` - String that define the preferred URL with the rel="canonical"
-      element; default: nil
+    * `:formatters` - Formatter to use; default: ["html"],
+      options: "html", "epub".
+
+    * `:logo` - Path to the image logo of the project (only PNG or JPEG accepted)
+      The image size will be 64x64. When specified, the logo will be placed under
+      the "assets" directory in the output path under the name "logo" and the
+      appropriate extension.
+
+    * `:main` - Main page of the documentation. It may be a module or a
+      generated page, like "Plug" or "api-reference"; default: "api-reference".
+
+    * `:source_beam` - Path to the beam directory; default: mix's compile path.
+
+    * `:source_ref` - The branch/commit/tag used for source link inference;
+      default: "master".
+
+    * `:source_root` - Path to the source code root directory;
+      default: "." (current directory).
+
+    * `:source_url_pattern` - Public URL of the project. Derived from
+      project's `:source_url` and `:source_ref`. Example:
+      "https://github.com/USER/APP/blob/master/%{path}#L%{line}"
+
+    * `:output` - Output directory for the generated docs; default: "doc".
+      May be overridden by command line argument.
+
+  ## Umbrella project
+
+  ExDoc can be used in an umbrella project and generates a single documentation for all child apps.
+
+  Generating documentation per each child app can be achieved by running:
+
+      mix cmd mix docs
+
+  See `mix help cmd` for more information.
   """
 
   @doc false
@@ -82,48 +111,36 @@ defmodule Mix.Tasks.Docs do
     Mix.Task.run "compile"
 
     {cli_opts, args, _} = OptionParser.parse(args,
-                            aliases: [o: :output, a: :canonical],
-                            switches: [output: :string, canonical: :string])
+                            aliases: [n: :canonical, f: :formatter, o: :output],
+                            switches: [canonical: :string, formatter: :keep, output: :string])
 
     if args != [] do
       Mix.raise "Extraneous arguments on the command line"
     end
 
-    project = (config[:name] || config[:app]) |> to_string()
+    project = to_string(config[:name] || config[:app])
     version = config[:version] || "dev"
-    options = Keyword.merge(cli_opts, get_docs_opts(config))
-
     options =
-      if config[:source_url] do
-        Keyword.put(options, :source_url, config[:source_url])
-      else
-        options
-      end
+      config
+      |> get_docs_opts()
+      |> Keyword.merge(cli_opts)
+      |> normalize_source_url(config)
+      |> normalize_source_beam(config)
+      |> normalize_main()
+      |> normalize_deps()
 
-    main = options[:main]
-
-    options =
-      cond do
-        is_nil(main) ->
-          Keyword.delete(options, :main)
-
-        is_atom(main) ->
-          Keyword.put(options, :main, inspect(main))
-
-        is_binary(main)->
-          options
-      end
-
-    options = Keyword.put_new(options, :source_beam, Mix.Project.compile_path)
-
-    index = generator.(project, version, options)
-    log(index)
-    index
+    for formatter <- get_formatters(options) do
+      index = generator.(project, version, Keyword.put(options, :formatter, formatter))
+      log(index)
+      index
+    end
   end
 
-  defp log(index) do
-    Mix.shell.info [:green, "Docs successfully generated."]
-    Mix.shell.info [:green, "View them at #{inspect index}."]
+  defp get_formatters(options) do
+    case Keyword.get_values(options, :formatter) do
+      [] -> options[:formatters] || ["html"]
+      values -> values
+    end
   end
 
   defp get_docs_opts(config) do
@@ -132,6 +149,77 @@ defmodule Mix.Tasks.Docs do
       is_function(docs, 0) -> docs.()
       is_nil(docs) -> []
       true -> docs
+    end
+  end
+
+  defp log(index) do
+    Mix.shell.info [:green, "Docs successfully generated."]
+    Mix.shell.info [:green, "View them at #{inspect index}."]
+  end
+
+  defp normalize_source_url(options, config) do
+    if source_url = config[:source_url] do
+      Keyword.put(options, :source_url, source_url)
+    else
+      options
+    end
+  end
+
+  defp normalize_source_beam(options, config) do
+    compile_path =
+      if Mix.Project.umbrella?(config) do
+        umbrella_compile_paths()
+      else
+        Mix.Project.compile_path
+      end
+
+    Keyword.put_new(options, :source_beam, compile_path)
+  end
+
+  defp umbrella_compile_paths do
+    # TODO: Use Mix.Project.apps_path when we require Elixir v1.4+
+    build = Mix.Project.build_path()
+    for %{app: app} <- Mix.Dep.Umbrella.unloaded do
+      Path.join([build, "lib", Atom.to_string(app), "ebin"])
+    end
+  end
+
+  defp normalize_main(options) do
+    main = options[:main]
+    cond do
+      is_nil(main) ->
+        Keyword.delete(options, :main)
+
+      is_atom(main) ->
+        Keyword.put(options, :main, inspect(main))
+
+      is_binary(main) ->
+        options
+    end
+  end
+
+  defp normalize_deps(options) do
+    deps =
+      if deps = options[:deps] do
+        Keyword.merge(get_deps(), deps)
+      else
+        get_deps()
+      end
+
+    deps =
+      for {app, doc} <- deps,
+          lib_dir = :code.lib_dir(app),
+          is_list(lib_dir),
+          do: {List.to_string(lib_dir), doc}
+
+    Keyword.put(options, :deps, deps)
+  end
+
+  defp get_deps do
+    for {key, _} <- Mix.Project.deps_paths,
+        _ = Application.load(key), # :ok | {:error, _}
+        vsn = Application.spec(key, :vsn) do
+      {key, "https://hexdocs.pm/#{key}/#{vsn}/"}
     end
   end
 end

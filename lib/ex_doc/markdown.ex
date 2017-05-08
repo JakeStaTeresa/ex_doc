@@ -4,16 +4,14 @@ defmodule ExDoc.Markdown do
 
   ExDoc supports the following Markdown parsers:
 
-  * [Hoedown][]
-  * [Earmark][]
-  * [Pandoc][]
-  * [Cmark][]
+    * [Hoedown][]
+    * [Earmark][]
+    * [Cmark][]
 
   If you don't specify a parser in `config/config.exs`, ExDoc will try to
   find one of the Markdown parsers from the list above in top-down fashion.
   Otherwise, ExDoc will raise an exception.
 
-  [Pandoc]: http://johnmacfarlane.net/pandoc/
   [Hoedown]: https://github.com/hoedown/hoedown
   [Earmark]: http://github.com/pragdave/earmark
   [Cmark]: https://github.com/asaaki/cmark.ex
@@ -22,7 +20,6 @@ defmodule ExDoc.Markdown do
   @markdown_processors [
     ExDoc.Markdown.Hoedown,
     ExDoc.Markdown.Earmark,
-    ExDoc.Markdown.Pandoc,
     ExDoc.Markdown.Cmark
   ]
 
@@ -31,9 +28,8 @@ defmodule ExDoc.Markdown do
   @doc """
   Converts the given markdown document to HTML.
   """
-  def to_html(text) when is_binary(text) do
-    get_markdown_processor().to_html(text)
-    |> pretty_codeblocks()
+  def to_html(text, opts \\ []) when is_binary(text) do
+    pretty_codeblocks(get_markdown_processor().to_html(text, opts))
   end
 
   @doc """
@@ -51,9 +47,10 @@ defmodule ExDoc.Markdown do
     bin
   end
 
-  defp get_markdown_processor() do
+  defp get_markdown_processor do
     case Application.fetch_env(:ex_doc, @markdown_processor_key) do
-      {:ok, processor} -> processor
+      {:ok, processor} ->
+        processor
       :error ->
         processor = find_markdown_processor() || raise_no_markdown_processor()
         Application.put_env(:ex_doc, @markdown_processor_key, processor)
@@ -61,13 +58,13 @@ defmodule ExDoc.Markdown do
     end
   end
 
-  defp find_markdown_processor() do
+  defp find_markdown_processor do
     Enum.find @markdown_processors, fn module ->
       Code.ensure_loaded?(module) && module.available?
     end
   end
 
-  defp raise_no_markdown_processor() do
+  defp raise_no_markdown_processor do
     raise """
     Could not find a markdown processor to be used by ex_doc.
     You can either:
@@ -80,9 +77,6 @@ defmodule ExDoc.Markdown do
 
     * Add {:cmark, ">= 0.5"} to your mix.exs deps
       to use another C-based markdown processor
-
-    * Ensure pandoc (http://johnmacfarlane.net/pandoc) is available on your system
-      to use it as an external tool
     """
   end
 end

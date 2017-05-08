@@ -3,12 +3,12 @@ defmodule ExDoc.Mixfile do
 
   def project do
     [app: :ex_doc,
-     version: "0.13.1",
-     elixir: "~> 1.2",
-     elixirc_paths: elixirc_paths(Mix.env),
+     version: "0.15.1",
+     elixir: "~> 1.3",
      deps: deps(),
      aliases: aliases(),
      package: package(),
+     escript: escript(),
      source_url: "https://github.com/elixir-lang/ex_doc/",
      test_coverage: [tool: ExCoveralls],
      preferred_cli_env: [coveralls: :test],
@@ -21,14 +21,11 @@ defmodule ExDoc.Mixfile do
   end
 
   defp deps do
-    [{:earmark, "~> 1.0"},
+    [{:earmark, "~> 1.1"},
      {:markdown, github: "devinus/markdown", only: :test},
      {:cmark, "~> 0.5", only: :test},
      {:excoveralls, "~> 0.3", only: :test}]
   end
-
-  defp elixirc_paths(:test), do: ["lib", "test/fixtures"]
-  defp elixirc_paths(_),     do: ["lib"]
 
   defp aliases do
     [clean: [&clean_test_fixtures/1, "clean"]]
@@ -36,7 +33,12 @@ defmodule ExDoc.Mixfile do
 
   defp package do
    [licenses: ["Apache 2.0"],
+    maintainers: ["José Valim", "Eksperimental", "Milton Mazzarri", "Friedel Ziegelmayer"],
     links: %{"GitHub" => "https://github.com/elixir-lang/ex_doc"}]
+  end
+
+  def escript do
+    [main_module: ExDoc.CLI]
   end
 
   defp clean_test_fixtures(_args) do

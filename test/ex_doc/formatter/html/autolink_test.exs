@@ -3,13 +3,14 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
 
   alias ExDoc.Formatter.HTML.Autolink
 
-  @elixir_docs "http://elixir-lang.org/docs/stable/"
+  @elixir_docs "https://hexdocs.pm/"
   @erlang_docs "http://www.erlang.org/doc/man/"
 
   # local_doc
 
   test "autolink fun/arity in docs" do
     assert Autolink.local_doc("`example/2`", ["example/2"]) == "[`example/2`](#example/2)"
+    assert Autolink.local_doc("`__ENV__/0`", ["__ENV__/0"]) == "[`__ENV__/0`](#__ENV__/0)"
     assert Autolink.local_doc("`example/2` then `example/2`",
       ["example/2"]) == "[`example/2`](#example/2) then [`example/2`](#example/2)"
     assert Autolink.local_doc("`  spaces/0  `", ["spaces/0"]) ==
@@ -50,6 +51,7 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
     assert Autolink.local_doc("`../2`", ["../2"]) === "[`../2`](#../2)"
     assert Autolink.local_doc("`--/2`", ["--/2"]) === "[`--/2`](#--/2)"
     assert Autolink.local_doc("`<<>>/1`", ["<<>>/1"]) === "[`<<>>/1`](#%3C%3C%3E%3E/1)"
+    assert Autolink.local_doc("`{}/1`", ["{}/1"]) === "[`{}/1`](#%7B%7D/1)"
   end
 
   # elixir_functions
@@ -57,6 +59,8 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
   test "autolink functions Module.fun/arity in docs" do
     assert Autolink.elixir_functions("`Mod.example/2`", ["Mod.example/2"]) ==
       "[`Mod.example/2`](Mod.html#example/2)"
+    assert Autolink.elixir_functions("`Mod.__ENV__/2`", ["Mod.__ENV__/2"]) ==
+      "[`Mod.__ENV__/2`](Mod.html#__ENV__/2)"
     assert Autolink.elixir_functions("`MyModule.example/2`", ["MyModule.example/2"]) ==
       "[`MyModule.example/2`](MyModule.html#example/2)"
     assert Autolink.elixir_functions("`MyModule.Nested.example/2`", ["MyModule.Nested.example/2"]) ==
@@ -85,6 +89,7 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
     assert Autolink.elixir_functions("`Mod.!/1`", ["Mod.!/1"]) === "[`Mod.!/1`](Mod.html#!/1)"
     assert Autolink.elixir_functions("`Mod.../2`", ["Mod.../2"]) === "[`Mod.../2`](Mod.html#../2)"
     assert Autolink.elixir_functions("`Mod.--/2`", ["Mod.--/2"]) === "[`Mod.--/2`](Mod.html#--/2)"
+    assert Autolink.elixir_functions("`Mod.%/2`", ["Mod.%/2"]) === "[`Mod.%/2`](Mod.html#%25/2)"
     assert Autolink.elixir_functions("`Mod.<<>>/1`", ["Mod.<<>>/1"]) === "[`Mod.<<>>/1`](Mod.html#%3C%3C%3E%3E/1)"
   end
 
@@ -125,6 +130,12 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
            "[`String`](#{@elixir_docs}elixir/String.html)"
     assert Autolink.elixir_modules("`Mix`", ["MyModule"], "MyModule") ==
            "[`Mix`](#{@elixir_docs}mix/Mix.html)"
+  end
+
+  test "autolink dependencies modules" do
+    lib_dirs = [{Application.app_dir(:earmark), "https://hexdocs.pm/earmark/"}]
+    assert Autolink.elixir_modules("`Earmark`", ["MyModule"], "MyModule", ".html", lib_dirs) ==
+           "[`Earmark`](https://hexdocs.pm/earmark/Earmark.html)"
   end
 
   test "autolink modules doesn't link functions" do
@@ -169,19 +180,50 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
 
   # typespec
 
+  test "operators" do
+    assert Autolink.typespec(quote(do: +number :: number), [], [], []) ==
+           ~s[+number :: number]
+
+    assert Autolink.typespec(quote(do: number + number :: number), [], [], []) ==
+           ~s[number + number :: number]
+  end
+
   test "strip parens in typespecs" do
     assert Autolink.typespec(quote(do: foo({}, bar())), [], []) == ~s[foo({}, bar)]
   end
 
   test "autolink locals in typespecs" do
     assert Autolink.typespec(quote(do: foo(1)), [foo: 1], []) ==
-           ~s[<a href="#t:foo/1">foo(1)</a>]
+           ~s[<a href="#t:foo/1">foo</a>(1)]
 
     assert Autolink.typespec(quote(do: bar(foo(1))), [foo: 1], []) ==
-           ~s[bar(<a href="#t:foo/1">foo(1)</a>)]
+           ~s[bar(<a href="#t:foo/1">foo</a>(1))]
+
+    assert Autolink.typespec(quote(do: (bar(foo(1)) when bat: foo(1))), [foo: 1], []) ==
+           ~s[bar(<a href="#t:foo/1">foo</a>(1)) when bat: <a href=\"#t:foo/1\">foo</a>(1)]
 
     assert Autolink.typespec(quote(do: bar(foo(1))), [], []) ==
            ~s[bar(foo(1))]
+  end
+
+  test "autolink same type and function name" do
+    assert Autolink.typespec(quote(do: foo() :: foo()), [foo: 0], [], []) ==
+           ~s[foo() :: <a href="#t:foo/0">foo</a>]
+
+    assert Autolink.typespec(quote(do: foo(1) :: foo(1)), [foo: 1], [], []) ==
+           ~s[foo(1) :: <a href="#t:foo/1">foo</a>(1)]
+
+    assert Autolink.typespec(quote(do: (foo(1) :: foo(1) when bat: foo(1))), [foo: 1], [], []) ==
+           ~s[foo(1) :: <a href=\"#t:foo/1\">foo</a>(1) when bat: <a href=\"#t:foo/1\">foo</a>(1)]
+
+    assert Autolink.typespec(quote(do: bar(foo(1)) :: foo(1)), [foo: 1], [], []) ==
+           ~s[bar(<a href=\"#t:foo/1\">foo</a>(1)) :: <a href=\"#t:foo/1\">foo</a>(1)]
+
+    assert Autolink.typespec(quote(do: (bar(foo(1)) :: foo(1) when bat: foo(1))), [foo: 1], [], []) ==
+           ~s[bar(<a href=\"#t:foo/1\">foo</a>(1)) :: <a href=\"#t:foo/1\">foo</a>(1) when bat: <a href=\"#t:foo/1\">foo</a>(1)]
+
+    assert Autolink.typespec(quote(do: bar(foo :: foo(1)) :: foo(1)), [foo: 1], [], []) ==
+           ~s[bar(foo :: <a href=\"#t:foo/1\">foo</a>(1)) :: <a href=\"#t:foo/1\">foo</a>(1)]
   end
 
   test "add new lines on |" do
@@ -200,7 +242,7 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
 
   test "autolink Elixir types in typespecs" do
     assert Autolink.typespec(quote(do: String.t), [], []) ==
-           ~s[<a href="http://elixir-lang.org/docs/stable/elixir/String.html#t:t/0">String.t</a>]
+           ~s[<a href="https://hexdocs.pm/elixir/String.html#t:t/0">String.t</a>]
 
     assert Autolink.typespec(quote(do: Unknown.bar()), [], []) ==
            ~s[Unknown.bar]
@@ -209,5 +251,28 @@ defmodule ExDoc.Formatter.HTML.AutolinkTest do
   test "autolink shared aliases in typespecs" do
     assert Autolink.typespec(quote(do: Foo.t), [], [Foo]) ==
            ~s[<a href="Foo.html#t:t/0">Foo.t</a>]
+  end
+
+  test "autolink local and remote types inside parameterized types" do
+    assert Autolink.typespec(quote(do: parameterized_t(foo())), [parameterized_t: 1, foo: 0], []) ==
+           ~s[<a href="#t:parameterized_t/1">parameterized_t</a>(<a href="#t:foo/0">foo</a>)]
+
+    assert Autolink.typespec(quote(do: Parameterized.t(foo())), [foo: 0], [Parameterized]) ==
+           ~s[<a href="Parameterized.html#t:t/1">Parameterized.t</a>(<a href="#t:foo/0">foo</a>)]
+
+    assert Autolink.typespec(quote(do: parameterized_t(Foo.t())), [parameterized_t: 1], [Foo]) ==
+           ~s[<a href="#t:parameterized_t/1">parameterized_t</a>(<a href="Foo.html#t:t/0">Foo.t</a>)]
+
+    assert Autolink.typespec(quote(do: Parameterized.t(Foo.t())), [], [Parameterized, Foo]) ==
+           ~s[<a href="Parameterized.html#t:t/1">Parameterized.t</a>(<a href="Foo.html#t:t/0">Foo.t</a>)]
+
+    assert Autolink.typespec(quote(do: parameterized_t(foo() | bar())), [parameterized_t: 1, foo: 0, bar: 0], []) ==
+           ~s[<a href="#t:parameterized_t/1">parameterized_t</a>(<a href="#t:foo/0">foo</a> | <a href="#t:bar/0">bar</a>)]
+
+    assert Autolink.typespec(quote(do: parameterized_t(parameterized_t(foo()))), [parameterized_t: 1, foo: 0], []) ==
+           ~s[<a href="#t:parameterized_t/1">parameterized_t</a>(<a href="#t:parameterized_t/1">parameterized_t</a>(<a href="#t:foo/0">foo</a>))]
+
+    assert Autolink.typespec(quote(do: parameterized_t(foo())), [foo: 0], []) ==
+           ~s[parameterized_t(<a href="#t:foo/0">foo</a>)]
   end
 end

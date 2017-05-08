@@ -7,12 +7,15 @@ defmodule ExDoc do
     @moduledoc """
     Configuration structure that holds all the available options for ExDoc
 
-    You can find more details about this options in the `ExDoc.CLI` module.
+    You can find more details about these options in the `ExDoc.CLI` module.
     """
     defstruct [
+      assets: nil,
       canonical: nil,
+      deps: [],
       extra_section: nil,
       extras: [],
+      filter_prefix: nil,
       formatter: "html",
       formatter_opts: [],
       homepage_url: nil,
@@ -28,6 +31,29 @@ defmodule ExDoc do
       title: nil,
       version: nil
     ]
+
+     @type t :: %__MODULE__{
+       assets: nil | String.t,
+       canonical: nil | String.t,
+       deps: [{ebin_path :: String.t, doc_url :: String.t}],
+       extra_section: nil | String.t,
+       extras: list(),
+       filter_prefix: nil | String.t,
+       formatter: nil | String.t,
+       formatter_opts: Keyword.t,
+       homepage_url: nil | String.t,
+       logo: nil | Path.t,
+       main: nil | String.t,
+       output: nil | Path.t,
+       project: nil | String.t,
+       retriever: :atom,
+       source_beam: nil | String.t,
+       source_root: nil | String.t,
+       source_url: nil | String.t,
+       source_url_pattern: nil | String.t,
+       title: nil | String.t,
+       version: nil | String.t
+     }
   end
 
   @ex_doc_version Mix.Project.config[:version]
@@ -39,23 +65,23 @@ defmodule ExDoc do
   def version, do: @ex_doc_version
 
   @doc """
-  Generates documentation for the given `project`, `version`
+  Generates documentation for the given `project`, `vsn` (version)
   and `options`.
   """
   @spec generate_docs(String.t, String.t, Keyword.t) :: atom
-  def generate_docs(project, version, options) when is_binary(project) and is_binary(version) and is_list(options) do
-    config = build_config(project, version, options)
+  def generate_docs(project, vsn, options) when is_binary(project) and is_binary(vsn) and is_list(options) do
+    config = build_config(project, vsn, options)
     docs = config.retriever.docs_from_dir(config.source_beam, config)
     find_formatter(config.formatter).run(docs, config)
   end
 
   # Builds configuration by merging `options`, and normalizing the options.
-  @spec build_config(String.t, String.t, Keyword.t) :: %ExDoc.Config{}
-  defp build_config(project, version, options) do
+  @spec build_config(String.t, String.t, Keyword.t) :: ExDoc.Config.t
+  defp build_config(project, vsn, options) do
     options = normalize_options(options)
     preconfig = %Config{
       project: project,
-      version: version,
+      version: vsn,
       main: options[:main],
       homepage_url: options[:homepage_url],
       source_root: options[:source_root] || File.cwd!,
@@ -92,13 +118,17 @@ defmodule ExDoc do
     options = Keyword.put(options, :source_url_pattern, pattern)
 
     if is_bitstring(options[:output]) do
-      Keyword.put(options, :output, String.rstrip(options[:output], ?/))
+      Keyword.put(options, :output, String.trim_trailing(options[:output], "/"))
     else
       options
     end
   end
 
   defp guess_url(url = <<"https://github.com/", _ :: binary>>, ref) do
+    append_slash(url) <> "blob/#{ref}/%{path}#L%{line}"
+  end
+
+  defp guess_url(url = <<"https://gitlab.com/", _ :: binary>>, ref) do
     append_slash(url) <> "blob/#{ref}/%{path}#L%{line}"
   end
 

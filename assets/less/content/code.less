@@ -1,8 +1,8 @@
-
 a.no-underline,
-code a {
+pre a {
   color: @purple;
   text-shadow: none;
+  text-decoration: none;
   background-image: none;
 
   &:visited,
@@ -10,32 +10,26 @@ code a {
   &:focus,
   &:hover {
     color: @purple;
-  }
-  &:hover {
     text-decoration: none;
-    border-bottom: 1px solid @purple;
   }
 }
 
 code {
   font-family: @monoFontFamily;
-  font-size: 15px;
   font-style: normal;
   line-height: 24px;
   font-weight: 400;
-  background-color: @lightestBlue;
-  border: 1px solid @gray;
+  background-color: @codeBackground;
   vertical-align: baseline;
   border-radius: 2px;
-  padding: 0 .5em;
+  padding: .1em .2em;
 }
 
 pre {
   margin: @baseLineHeight 0;
-  overflow-x: scroll;
 
   &.spec {
-      margin: 0;
+    margin: 0;
   }
 
   &.spec code {
@@ -44,7 +38,7 @@ pre {
 
   code.hljs {
     white-space: inherit;
-    padding: 1em 1.5em;
-    background-color: @lightestBlue;
+    padding: 0.5em 1em;
+    background-color: @codeBackground;
   }
 }

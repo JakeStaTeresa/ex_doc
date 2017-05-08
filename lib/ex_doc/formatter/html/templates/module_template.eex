@@ -1,5 +1,5 @@
     <%= head_template(config, %{title: module.id, type: module.type}) %>
-    <%= sidebar_template(config, modules, exceptions, protocols) %>
+    <%= sidebar_template(config, nodes_map) %>
 
       <h1>
         <small class="visible-xs"><%= config.project %> v<%= config.version %></small>
@@ -7,20 +7,20 @@
         <%= if module.type != :module do %>
           <small><%= module.type %></small>
         <% end %>
-        <%= if module.source do %>
-          <a href="<%= module.source %>" title="View Source" class="view-source" rel="help">
+        <%= if module.source_url do %>
+          <a href="<%= module.source_url %>" title="View Source" class="view-source" rel="help">
             <i class="icon-code"></i>
           </a>
         <% end %>
       </h1>
 
-      <%= if module.moduledoc do %>
+      <%= if module.doc do %>
         <section id="moduledoc">
-          <%= module.moduledoc |> to_html() |> link_moduledoc_headings() %>
+          <%= module.doc |> to_html(module) |> link_moduledoc_headings() %>
         </section>
       <% end %>
 
-      <%= unless Enum.empty?(types) and Enum.empty?(functions) and Enum.empty?(macros) and Enum.empty?(callbacks) do %>
+      <%= if Enum.any?(summary_map, fn {_, v} -> v != [] end) do %>
         <section id="summary" class="details-list">
           <h1 class="section-heading">
             <a class="hover-link" href="#summary">
@@ -28,15 +28,14 @@
             </a>
             Summary
           </h1>
-          <%= summary_template "types", types %>
-          <%= summary_template "functions", functions %>
-          <%= summary_template "macros", macros %>
-          <%= summary_template "callbacks", callbacks %>
+          <%= summary_template "types", summary_map.types %>
+          <%= summary_template "functions", summary_map.functions %>
+          <%= summary_template "callbacks", summary_map.callbacks %>
         </section>
       <% end %>
 
-      <%= unless Enum.empty?(types) do %>
-        <section id="types" class="types details-list">
+      <%= if summary_map.types != [] do %>
+        <section id="types" class="details-list">
           <h1 class="section-heading">
             <a class="hover-link" href="#types">
               <i class="icon-link"></i>
@@ -44,12 +43,14 @@
             Types
           </h1>
           <div class="types-list">
-            <%= for node <- types, do: type_detail_template(node, module) %>
+            <%= for type_node <- summary_map.types do
+              detail_template(type_node, module)
+            end %>
           </div>
         </section>
       <% end %>
 
-      <%= unless Enum.empty?(functions) do %>
+      <%= if summary_map.functions != [] do %>
         <section id="functions" class="details-list">
           <h1 class="section-heading">
             <a class="hover-link" href="#functions">
@@ -57,23 +58,13 @@
             </a>
             Functions
           </h1>
-          <%= for node <- functions, do: detail_template(node, module) %>
+          <%= for function_node <- summary_map.functions do
+            detail_template(function_node, module)
+          end %>
         </section>
       <% end %>
 
-      <%= unless Enum.empty?(macros) do %>
-        <section id="macros" class="details-list">
-          <h1 class="section-heading">
-            <a class="hover-link" href="#macros">
-              <i class="icon-link"></i>
-            </a>
-            Macros
-          </h1>
-          <%= for node <- macros, do: detail_template(node, module) %>
-        </section>
-      <% end %>
-
-      <%= unless Enum.empty?(callbacks) do %>
+      <%= if summary_map.callbacks != [] do %>
         <section id="callbacks" class="details-list">
           <h1 class="section-heading">
             <a class="hover-link" href="#callbacks">
@@ -81,7 +72,9 @@
             </a>
             Callbacks
           </h1>
-          <%= for node <- callbacks, do: detail_template(node, module) %>
+          <%= for callback_node <- summary_map.callbacks do
+            detail_template(callback_node, module)
+          end %>
         </section>
       <% end %>
     <%= footer_template(config) %>

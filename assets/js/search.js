@@ -8,7 +8,7 @@
 
 import $ from 'jquery'
 import * as helpers from './helpers'
-
+import {closeSidebar, breakpoint} from './sidebar'
 import resultsTemplate from './templates/search-results.handlebars'
 
 // Local Variables
@@ -115,8 +115,12 @@ function search (nodes, value) {
   $oldContent.hide()
   $content.append($results)
 
+  // Auto-hide Menu if on Mobile device
+  window.screen.width < breakpoint ? closeSidebar() : null
+
   function closeResults (e) {
     var event = e || window.event
+    var $hashElement = document.getElementById(helpers.getLocationHash())
     if (typeof event === 'object' && event !== null) {
       if (event.metaKey || event.shiftKey || event.altKey ||
           event.ctrlKey || event.button === 1 || event.button === 2) {
@@ -126,6 +130,9 @@ function search (nodes, value) {
 
     $results.remove()
     $oldContent.fadeIn()
+    if ($hashElement && $hashElement.scrollIntoView) {
+      $hashElement.scrollIntoView()
+    }
   }
 
   $results.find('.close-search').on('click', function (e) {

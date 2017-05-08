@@ -14,6 +14,12 @@ const sidebarOpenedClass = 'sidebar-opened'
 const sidebarOpeningClass = 'sidebar-opening'
 const sidebarClosedClass = 'sidebar-closed'
 const sidebarClosingClass = 'sidebar-closing'
+const sidebarClasses = [
+  sidebarOpenedClass,
+  sidebarOpeningClass,
+  sidebarClosedClass,
+  sidebarClosingClass
+].join(' ')
 
 // Current animation state
 // -----------------------
@@ -54,19 +60,24 @@ function toggleSidebar () {
   if (bodyClass.includes(sidebarClosedClass) ||
       bodyClass.includes(sidebarClosingClass)) {
     openSidebar()
-  } else if (bodyClass.includes(sidebarOpenedClass) ||
-             bodyClass.includes(sidebarOpeningClass)) {
-    closeSidebar()
-  // Otherwise check the width of window to know which action to invoke.
   } else {
-    window.screen.width > breakpoint ? closeSidebar() : openSidebar()
+    closeSidebar()
   }
+}
+
+function setDefaultSidebarState () {
+  body.removeClass(sidebarClasses)
+  body.addClass(window.innerWidth > breakpoint ? sidebarOpenedClass : sidebarClosedClass)
 }
 
 // Public Methods
 // --------------
 
+export {breakpoint, closeSidebar}
+
 export function initialize () {
+  setDefaultSidebarState()
+  $(window).resize(setDefaultSidebarState)
   $('.sidebar-toggle').click(function () {
     toggleSidebar()
   })

@@ -32,11 +32,6 @@ function setupSelected (id) {
 }
 
 function collapse () {
-  $('#full-list > li.node:not(.clicked)').each(function () {
-    $(this).addClass('collapsed').next('li.docs').addClass('collapsed')
-  })
-
-  // Scroll list to the selected one
   var $fullList = $('#full-list')
   var $clicked = $('#full-list .clicked')
   if ($clicked.length > 0) {
@@ -60,48 +55,24 @@ function fillSidebarWithNodes (nodes, filter) {
   function scope (items) {
     var filtered = nodes[items]
     var fullList = $('#full-list')
-    fullList.replaceWith(sidebarItemsTemplate(filtered))
+    fullList.replaceWith(sidebarItemsTemplate({'nodes': filtered, 'group': ''}))
   }
 
-  const module_type = helpers.getModuleType()
+  const moduleType = helpers.getModuleType()
 
-  filter = filter || module_type
+  filter = filter || moduleType
   scope(filter)
   setupSelected(['#', filter, '-list'].join(''))
 
-  var $docLinks = $('#full-list .doclink')
-  var $docItems = $('#full-list .docs')
-  var $defItems = $('#full-list .deflist > li')
-
-  function handleAnchor (e) {
-    e.preventDefault()
-
+  $('#full-list li a').on('click', e => {
     var $target = $(e.target)
-
-    $docItems.removeClass('active')
-    $target.closest('li').addClass('active')
-
-    var href = $target.attr('href')
-    helpers.scrollTo(CONTENT, helpers.saveFind(href), function () {
-      window.location.hash = href.replace(/^#/, '')
-    })
-  }
-
-  $('#full-list .node.clicked > a').on('click', handleAnchor)
-  $docLinks.on('click', handleAnchor)
-
-  $('#full-list .node.clicked .deflink').on('click', e => {
-    e.preventDefault()
-
-    var $target = $(e.target)
-
-    $defItems.removeClass('active')
-    $target.closest('li').addClass('active')
-
-    var href = $target.attr('href')
-    helpers.scrollTo(CONTENT, helpers.saveFind(href), function () {
-      window.location.hash = href.replace(/^#/, '')
-    })
+    if ($target.hasClass('expand')) {
+      e.preventDefault()
+      $(e.target).closest('li').toggleClass('open')
+    } else {
+      $('#full-list .clicked li.active').removeClass('active')
+      $(e.target).closest('li').addClass('active')
+    }
   })
 }
 
@@ -133,22 +104,18 @@ function addEventListeners () {
 }
 
 function identifyCurrentHash () {
-  var hash = window.location.hash
-
-  if (!hash) return
+  var hash = helpers.getLocationHash() || 'content'
 
   const nodes = sidebarNodes[helpers.getModuleType()]
-  const category = helpers.findSidebarCategory(nodes, hash.replace(/^#/, ''))
+  const category = helpers.findSidebarCategory(nodes, hash)
 
-  $(`#full-list .clicked a[href="#${category}"]`)
+  $(`#full-list .clicked a.expand[href$="#${category}"]`)
+    .closest('li')
+    .addClass('open')
+
+  $(`#full-list .clicked a[href$="#${hash}"]`)
     .closest('li')
     .addClass('active')
-
-  $(`#full-list .clicked a[href="${hash}"]`)
-    .closest('li')
-    .addClass('active')
-
-  helpers.saveFind(hash)
 }
 
 function fixLinks () {

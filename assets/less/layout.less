@@ -3,10 +3,10 @@ body {
   box-sizing: border-box;
   height: 100%;
   width: 100%;
-  overflow: hidden;
 }
 
 body {
+  background-color: @white;
   font-size: 16px;
   font-family: @sansFontFamily;
   line-height: 1.6875em;
@@ -20,8 +20,6 @@ body {
 
 .main {
   .display(flex);
-  height: 100%;
-  overflow: hidden;
   justify-content: flex-end;
 }
 
@@ -30,7 +28,7 @@ body {
   .flex-direction(column);
   width: 300px;
   height: 100%;
-  position: absolute;
+  position: fixed;
   top: 0;
   left: 0;
   z-index: 4;
@@ -146,8 +144,8 @@ body.sidebar-closed .sidebar {
 }
 
 .content-outer {
-  min-height: 100%;
   background-color: @white;
+  min-height: 100%;
 }
 
 @media screen and (max-width: 768px) {
